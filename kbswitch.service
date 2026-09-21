@@ -1,0 +1,10 @@
+[Unit]
+Description=kbswitch hotkey layout fixer
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/kbswitch.py
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

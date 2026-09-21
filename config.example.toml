@@ -1,0 +1,15 @@
+# ~/.config/kbswitch/config.toml  (всё необязательно, есть автоопределение)
+[general]
+layouts = ["us", "ru"]     # порядок раскладок в системе (нужен для KDE)
+initial_layout = "en"      # если текущую раскладку узнать нельзя, учёт начинается отсюда
+# buffer_ttl = 15          # через сколько секунд бездействия стирать буфер набранного
+# key_delay = 0.004       # пауза между нажатиями при вводе, сек
+
+[hotkeys]
+key = "KEY_PAUSE"          # например KEY_SCROLLLOCK, если на ноутбуке нет Pause
+
+[switch]
+# command = "swaymsg input type:keyboard xkb_switch_layout next"
+# keys = ["KEY_LEFTMETA", "KEY_SPACE"]     # послать системный хоткей смены раскладки
+# query = "my-layout-cmd"                  # команда, печатающая текущую раскладку
+# delay = 0.08
