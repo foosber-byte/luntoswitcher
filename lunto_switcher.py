@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""kbswitch: hotkey-only layout fixer (Punto Switcher style) for Linux, X11 and Wayland.
+"""Lunto Switcher: hotkey-only layout fixer (Punto Switcher style) for Linux, X11 and Wayland.
 
 Pause          re-type the last word (up to the previous space) in the other layout
 Shift+Pause    convert the selected text to the other layout
@@ -30,7 +30,7 @@ except ModuleNotFoundError:  # Python < 3.11
     except ModuleNotFoundError:
         tomllib = None
 
-VIRT_NAME = "kbswitch-virtual"
+VIRT_NAME = "lunto-switcher-virtual"
 
 # key, en lower, en upper, ru lower, ru upper (physical key -> char per layout)
 ROWS = [
@@ -81,7 +81,7 @@ MAX_BUF = 64     # a "word" never needs more; less data held is less to leak
 
 def log(*a):
     """Never pass typed or selected text here: the log file must stay free of user data."""
-    print("kbswitch:", *a, file=sys.stderr, flush=True)
+    print("lunto-switcher:", *a, file=sys.stderr, flush=True)
 
 
 def harden():
@@ -487,7 +487,7 @@ class Daemon:
 
 
 def load_config():
-    path = Path(os.environ.get("KBSWITCH_CONFIG", Path.home() / ".config/kbswitch/config.toml"))
+    path = Path(os.environ.get("LUNTO_SWITCHER_CONFIG", Path.home() / ".config/lunto-switcher/config.toml"))
     if tomllib and path.exists():
         with open(path, "rb") as f:
             return tomllib.load(f)
@@ -499,6 +499,6 @@ if __name__ == "__main__":
     try:
         Daemon(load_config()).loop()
     except PermissionError as ex:
-        sys.exit("kbswitch: no access to /dev/input or /dev/uinput (%s). See README: 'input' group + udev rule." % ex)
+        sys.exit("lunto-switcher: no access to /dev/input or /dev/uinput (%s). See README: 'input' group + udev rule." % ex)
     except KeyboardInterrupt:
         pass

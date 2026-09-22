@@ -1,4 +1,4 @@
-# kbswitch
+# Lunto Switcher
 
 Аналог Punto Switcher для Linux (X11 и Wayland), только по горячим клавишам.
 
@@ -13,7 +13,7 @@
 ## Установка (Manjaro/Arch)
 
 ```bash
-tar xf kbswitch-arch-0.1.0.tar.gz && cd kbswitch-arch-0.1.0
+tar xf lunto-switcher-arch-0.1.0.tar.gz && cd lunto-switcher-arch-0.1.0
 makepkg -si     # подтянет python-evdev, wl-clipboard, xclip
 # затем перелогиниться
 ```
@@ -21,9 +21,17 @@ makepkg -si     # подтянет python-evdev, wl-clipboard, xclip
 ## Установка (Debian/Ubuntu, .deb)
 
 ```bash
-sudo apt install ./kbswitch_0.1.0_all.deb   # подтянет python3-evdev, wl-clipboard, xclip
+sudo apt install ./lunto-switcher_0.1.0_all.deb   # подтянет python3-evdev, wl-clipboard, xclip
 # затем перелогиниться: пакет добавит вас в группу input, демон стартует автоматически
-# лог: ~/.cache/kbswitch.log
+# лог: ~/.cache/lunto-switcher.log
+```
+
+## Установка (Fedora/RHEL, .rpm)
+
+```bash
+sudo dnf install ./lunto-switcher-0.1.0-1*.rpm   # подтянет python3-evdev, wl-clipboard, xclip
+# затем перелогиниться: пакет добавит вас в группу input, демон стартует автоматически
+# лог: ~/.cache/lunto-switcher.log
 ```
 
 ## Установка вручную
@@ -33,14 +41,14 @@ sudo apt install python3-evdev wl-clipboard xclip     # Fedora: python3-evdev wl
 # нужен Python 3.11+ для config.toml (без него работают умолчания)
 
 sudo usermod -aG input "$USER"                        # затем перелогиниться
-sudo cp 70-kbswitch.rules /etc/udev/rules.d/
+sudo cp 70-lunto-switcher.rules /etc/udev/rules.d/
 echo uinput | sudo tee /etc/modules-load.d/uinput.conf
 sudo modprobe uinput && sudo udevadm control --reload && sudo udevadm trigger
 
-install -Dm755 kbswitch.py ~/.local/bin/kbswitch.py
-install -Dm644 kbswitch.service ~/.config/systemd/user/kbswitch.service
-systemctl --user enable --now kbswitch
-journalctl --user -u kbswitch -f                      # логи
+install -Dm755 lunto_switcher.py ~/.local/bin/lunto-switcher
+install -Dm644 lunto-switcher.service ~/.config/systemd/user/lunto-switcher.service
+systemctl --user enable --now lunto-switcher
+journalctl --user -u lunto-switcher -f                # логи
 ```
 
 На X11 раскладка читается и переключается напрямую через libX11 (порядок групп берётся

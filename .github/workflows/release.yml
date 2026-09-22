@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag matches package versions
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          DEB_VER=$(grep -m1 '^VERSION = ' build_deb.py | cut -d'"' -f2)
+          ARCH_VER=$(grep -m1 '^VERSION = ' build_arch.py | cut -d'"' -f2)
+          SPEC_VER=$(grep -m1 '^Version:' lunto-switcher.spec | awk '{print $2}')
+          echo "tag=$TAG deb=$DEB_VER arch=$ARCH_VER spec=$SPEC_VER"
+          if [ "$TAG" != "$DEB_VER" ] || [ "$TAG" != "$ARCH_VER" ] || [ "$TAG" != "$SPEC_VER" ]; then
+            echo "::error::version mismatch between tag and package files"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build .deb
+        run: python3 build_deb.py
+
+      - name: Build Arch tarball
+        run: python3 build_arch.py
+
+      - name: Install rpmbuild
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
+      - name: Build .rpm
+        run: |
+          mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS
+          cp lunto_switcher.py 70-lunto-switcher.rules config.example.toml README.md ~/rpmbuild/SOURCES/
+          cp lunto-switcher.spec ~/rpmbuild/SPECS/
+          rpmbuild -bb ~/rpmbuild/SPECS/lunto-switcher.spec
+          find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} dist/ \;
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

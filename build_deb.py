@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds dist/kbswitch_<ver>_all.deb without dpkg-deb (pure Python: ar + tar.gz)."""
+"""Builds dist/lunto-switcher_<ver>_all.deb without dpkg-deb (pure Python: ar + tar.gz)."""
 import gzip
 import hashlib
 import io
@@ -11,14 +11,14 @@ VERSION = "0.1.0"
 HERE = Path(__file__).parent
 NOW = int(time.time())
 
-CONTROL = f"""Package: kbswitch
+CONTROL = f"""Package: lunto-switcher
 Version: {VERSION}
 Architecture: all
 Section: utils
 Priority: optional
 Depends: python3 (>= 3.8), python3-evdev, wl-clipboard, xclip, systemd | udev
 Recommends: python3-tomli
-Maintainer: kbswitch <noreply@localhost>
+Maintainer: Lunto Switcher <noreply@localhost>
 Installed-Size: {{size}}
 Description: hotkey-only keyboard layout fixer (Punto Switcher style)
  Pause re-types the last word in the other layout, Shift+Pause converts the
@@ -37,9 +37,9 @@ if [ "$1" = configure ]; then
     u="${SUDO_USER:-}"
     if [ -n "$u" ] && [ "$u" != root ] && getent group input >/dev/null 2>&1; then
         usermod -aG input "$u" || true
-        echo "kbswitch: user '$u' added to group 'input'. Log out and back in to activate."
+        echo "lunto-switcher: user '$u' added to group 'input'. Log out and back in to activate."
     else
-        echo "kbswitch: add your user to the 'input' group:  sudo usermod -aG input <user>  (then re-login)"
+        echo "lunto-switcher: add your user to the 'input' group:  sudo usermod -aG input <user>  (then re-login)"
     fi
 fi
 exit 0
@@ -48,7 +48,7 @@ exit 0
 PRERM = """#!/bin/sh
 set -e
 if [ "$1" = remove ] || [ "$1" = upgrade ]; then
-    pkill -f '/usr/bin/kbswitch' 2>/dev/null || true
+    pkill -f '/usr/bin/lunto-switcher' 2>/dev/null || true
 fi
 exit 0
 """
@@ -57,9 +57,9 @@ UDEV = 'KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS
 
 DESKTOP = """[Desktop Entry]
 Type=Application
-Name=kbswitch
+Name=Lunto Switcher
 Comment=Hotkey layout fixer (Pause / Shift+Pause / Alt+Pause)
-Exec=sh -c 'mkdir -p "$HOME/.cache" && exec /usr/bin/kbswitch 2>>"$HOME/.cache/kbswitch.log"'
+Exec=sh -c 'mkdir -p "$HOME/.cache" && exec /usr/bin/lunto-switcher 2>>"$HOME/.cache/lunto-switcher.log"'
 Terminal=false
 NoDisplay=true
 X-GNOME-Autostart-enabled=true
@@ -71,12 +71,12 @@ MODULES = "uinput\n"
 def files():
     """(path in package, bytes, mode)"""
     return [
-        ("usr/bin/kbswitch", (HERE / "kbswitch.py").read_bytes(), 0o755),
-        ("lib/udev/rules.d/70-kbswitch.rules", UDEV.encode(), 0o644),
-        ("usr/lib/modules-load.d/kbswitch.conf", MODULES.encode(), 0o644),
-        ("etc/xdg/autostart/kbswitch.desktop", DESKTOP.encode(), 0o644),
-        ("usr/share/doc/kbswitch/README.md", (HERE / "README.md").read_bytes(), 0o644),
-        ("usr/share/doc/kbswitch/config.example.toml", (HERE / "config.example.toml").read_bytes(), 0o644),
+        ("usr/bin/lunto-switcher", (HERE / "lunto_switcher.py").read_bytes(), 0o755),
+        ("lib/udev/rules.d/70-lunto-switcher.rules", UDEV.encode(), 0o644),
+        ("usr/lib/modules-load.d/lunto-switcher.conf", MODULES.encode(), 0o644),
+        ("etc/xdg/autostart/lunto-switcher.desktop", DESKTOP.encode(), 0o644),
+        ("usr/share/doc/lunto-switcher/README.md", (HERE / "README.md").read_bytes(), 0o644),
+        ("usr/share/doc/lunto-switcher/config.example.toml", (HERE / "config.example.toml").read_bytes(), 0o644),
     ]
 
 
@@ -130,7 +130,7 @@ def main():
             tar.addfile(ti, io.BytesIO(data))
     control_tgz = gzip.compress(buf.getvalue(), mtime=0)
 
-    out = HERE / "dist" / f"kbswitch_{VERSION}_all.deb"
+    out = HERE / "dist" / f"lunto-switcher_{VERSION}_all.deb"
     out.parent.mkdir(exist_ok=True)
     out.write_bytes(
         b"!<arch>\n"
