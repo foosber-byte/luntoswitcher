@@ -1,5 +1,8 @@
 # Lunto Switcher
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/foosber-byte/luntoswitcher)](https://github.com/foosber-byte/luntoswitcher/releases)
+
 Аналог Punto Switcher для Linux (X11 и Wayland), только по горячим клавишам.
 
 | Клавиша | Действие |
@@ -88,3 +91,11 @@ journalctl --user -u lunto-switcher -f                # логи
   Это свойство самой группы, а не демона; на многопользовательской машине
   подумайте, кого в неё включать.
 - Сетевого кода в демоне нет; проверить это можно чтением скрипта (~400 строк).
+
+## Лицензия
+
+MIT License - см. [LICENSE](LICENSE)
+
+## Публикация в AUR
+
+См. [AUR_PUBLISHING.md](AUR_PUBLISHING.md) для инструкций по публикации пакета в Arch User Repository.

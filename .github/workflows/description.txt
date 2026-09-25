@@ -1,0 +1,1 @@
+Hotkey-only keyboard layout fixer for Linux. Press Pause to re-type the last word in the other layout (like Punto Switcher), Shift+Pause for selected text, Alt+Pause to swap case. Works on X11 and Wayland via evdev/uinput. Privacy-focused: no clipboard use, no logging of typed text, ephemeral buffer.

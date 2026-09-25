@@ -8,6 +8,8 @@ Alt+Pause      swap case of the last word (or of the selected text)
 Reads keys from /dev/input (evdev), types through a uinput virtual keyboard, so it
 works the same on X11 and Wayland. The clipboard is never touched: the selection is
 read from PRIMARY.
+
+MIT License - Copyright (c) 2026 foosber
 """
 import json
 import os

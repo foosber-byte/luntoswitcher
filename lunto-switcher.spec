@@ -3,7 +3,7 @@ Version:        0.1.0
 Release:        1%{?dist}
 Summary:        Hotkey-only keyboard layout fixer (Punto Switcher style)
 
-License:        Custom
+License:        MIT
 URL:            https://github.com/foosber-byte/luntoswitcher
 Source0:        lunto_switcher.py
 Source1:        70-lunto-switcher.rules
