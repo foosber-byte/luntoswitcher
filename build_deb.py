@@ -7,7 +7,7 @@ import tarfile
 import time
 from pathlib import Path
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 HERE = Path(__file__).parent
 NOW = int(time.time())
 

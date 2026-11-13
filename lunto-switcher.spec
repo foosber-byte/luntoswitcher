@@ -1,5 +1,5 @@
 Name:           lunto-switcher
-Version:        0.1.0
+Version:        0.1.1
 Release:        1%{?dist}
 Summary:        Hotkey-only keyboard layout fixer (Punto Switcher style)
 
@@ -60,6 +60,7 @@ chmod 644 %{buildroot}%{_prefix}/lib/modules-load.d/lunto-switcher.conf
 %{_prefix}/lib/udev/rules.d/70-lunto-switcher.rules
 %{_sysconfdir}/xdg/autostart/lunto-switcher.desktop
 %{_prefix}/lib/modules-load.d/lunto-switcher.conf
+%{_datadir}/licenses/lunto-switcher/LICENSE
 %doc %{_datadir}/doc/lunto-switcher/README.md
 %{_datadir}/doc/lunto-switcher/config.example.toml
 
@@ -80,5 +81,8 @@ if [ "$1" = 0 ]; then
 fi
 
 %changelog
+* Sat Nov 14 2026 Lunto Switcher <noreply@localhost> - 0.1.1-1
+- Include LICENSE file in package %files
+
 * Mon Sep 21 2026 Lunto Switcher <noreply@localhost> - 0.1.0-1
 - Initial release
