@@ -174,7 +174,11 @@ KDE_KBD = ["busctl", "--user", "call", "org.kde.keyboard", "/Layouts", "org.kde.
 
 
 def q_kde(order):
-    return order[int(re.search(r"\d+", run(KDE_KBD + ["getLayout"])).group())]
+    out = run(KDE_KBD + ["getLayout"])
+    m = re.search(r"\d+", out)
+    if not m:
+        raise RuntimeError("unexpected busctl output: %r" % out[:80])
+    return order[int(m.group())]
 
 
 class X11Xkb:
@@ -603,8 +607,7 @@ class Tray:
 
     def update_title(self):
         combo = hotkey_label(self.daemon)
-        self.ind.set_title("Lunto Switcher",
-                           "Слово: %s | Выделение: Shift+%s | Регистр: Alt+%s" % (combo, combo, combo))
+        self.ind.set_title("Слово: %s | Выделение: Shift+%s | Регистр: Alt+%s" % (combo, combo, combo))
 
     def ask_hotkey(self, *_):
         Gtk, GLib = self.Gtk, self.GLib
