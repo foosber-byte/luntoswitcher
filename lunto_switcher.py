@@ -269,6 +269,7 @@ class Daemon:
         self.pending = None    # (action, deadline): waits until modifiers are released
         self.devs = {}
         self.ignored = set()
+        self.grabbed = set()
 
     # ---- output -----------------------------------------------------------------------
     def emit(self, code, value):
@@ -491,6 +492,14 @@ class Daemon:
                 d.close()
                 continue
             self.devs[path] = d
+            # keyboards are grabbed so the hotkey can be swallowed before it reaches
+            # the focused app; every other key is relayed through uinput untouched
+            if e.KEY_A in keys and e.KEY_SPACE in keys:
+                try:
+                    d.grab()
+                    self.grabbed.add(path)
+                except OSError as ex:
+                    log("cannot grab", d.name, "the hotkey may leak to apps:", ex)
             log("listening on", d.name)
 
     def loop(self):
@@ -521,9 +530,16 @@ class Daemon:
                     for ev in dev.read():
                         if ev.type == e.EV_KEY:
                             self.on_key(ev.code, ev.value)
+                            if path in self.grabbed and ev.code != self.hotkey:
+                                self.emit(ev.code, ev.value)
+                        elif path in self.grabbed and ev.type == e.EV_MSC:
+                            self.ui.write(ev.type, ev.code, ev.value)
+                            self.ui.syn()
                 except OSError:      # unplugged
                     self.devs.pop(path, None)
+                    self.grabbed.discard(path)
                     self.down.clear()
+                    dev.close()
             self.expire()
             self.run_pending()
 

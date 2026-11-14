@@ -1,6 +1,6 @@
 Name:           lunto-switcher
 %{!?_user_unit_dir:%global _user_unit_dir /usr/lib/systemd/user}
-Version:        0.2.3
+Version:        0.2.4
 Release:        1%{?dist}
 Summary:        Hotkey-only keyboard layout fixer (Punto Switcher style)
 
