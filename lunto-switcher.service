@@ -3,7 +3,7 @@ Description=Lunto Switcher hotkey layout fixer
 After=graphical-session.target
 
 [Service]
-ExecStart=%h/.local/bin/lunto-switcher
+ExecStart=/usr/bin/lunto-switcher
 Restart=on-failure
 
 [Install]

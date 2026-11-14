@@ -42,7 +42,7 @@ jobs:
       - name: Build .rpm
         run: |
           mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS
-          cp lunto_switcher.py 70-lunto-switcher.rules config.example.toml README.md LICENSE lunto-en.svg lunto-ru.svg ~/rpmbuild/SOURCES/
+          cp lunto_switcher.py 70-lunto-switcher.rules config.example.toml README.md LICENSE lunto-en.svg lunto-ru.svg lunto-switcher.service ~/rpmbuild/SOURCES/
           cp lunto-switcher.spec ~/rpmbuild/SPECS/
           rpmbuild -bb ~/rpmbuild/SPECS/lunto-switcher.spec
           find ~/rpmbuild/RPMS -name '*.rpm' -exec cp {} dist/ \;

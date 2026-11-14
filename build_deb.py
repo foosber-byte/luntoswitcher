@@ -7,7 +7,7 @@ import tarfile
 import time
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 HERE = Path(__file__).parent
 NOW = int(time.time())
 
@@ -44,11 +44,10 @@ if [ "$1" = configure ]; then
     if [ -n "$u" ] && [ "$u" != root ]; then
         uid=$(id -u "$u" 2>/dev/null || :)
         if [ -n "$uid" ] && [ -S "/run/user/$uid/bus" ]; then
-            pkill -f 'python3 /usr/bin/lunto-switcher' 2>/dev/null || true
             runuser -u "$u" -- env XDG_RUNTIME_DIR=/run/user/$uid \
                 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
-                DISPLAY=:0 sh -c 'nohup /usr/bin/lunto-switcher >/dev/null 2>&1 &' || true
-            echo "lunto-switcher: daemon restarted in the running session"
+                sh -c 'pkill -f "python3 /usr/bin/lunto-switcher" 2>/dev/null; systemctl --user daemon-reload; systemctl --user enable --now lunto-switcher.service' || true
+            echo "lunto-switcher: daemon (re)started via systemd --user"
         else
             echo "lunto-switcher: will start automatically at the next login"
         fi
@@ -79,6 +78,18 @@ X-GNOME-Autostart-enabled=true
 
 MODULES = "uinput\n"
 
+SERVICE = """[Unit]
+Description=Lunto Switcher hotkey layout fixer
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/lunto-switcher
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
+"""
+
 
 def copyright_file():
     lic = (HERE / "LICENSE").read_text().strip().splitlines()
@@ -98,6 +109,7 @@ def files():
         ("lib/udev/rules.d/70-lunto-switcher.rules", UDEV.encode(), 0o644),
         ("usr/lib/modules-load.d/lunto-switcher.conf", MODULES.encode(), 0o644),
         ("etc/xdg/autostart/lunto-switcher.desktop", DESKTOP.encode(), 0o644),
+        ("usr/lib/systemd/user/lunto-switcher.service", SERVICE.encode(), 0o644),
         ("usr/share/doc/lunto-switcher/copyright", copyright_file(), 0o644),
         ("usr/share/doc/lunto-switcher/README.md", (HERE / "README.md").read_bytes(), 0o644),
         ("usr/share/doc/lunto-switcher/config.example.toml", (HERE / "config.example.toml").read_bytes(), 0o644),

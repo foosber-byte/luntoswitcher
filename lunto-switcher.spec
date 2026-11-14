@@ -1,5 +1,5 @@
 Name:           lunto-switcher
-Version:        0.2.0
+Version:        0.2.1
 Release:        1%{?dist}
 Summary:        Hotkey-only keyboard layout fixer (Punto Switcher style)
 
@@ -12,6 +12,7 @@ Source3:        README.md
 Source4:        LICENSE
 Source5:        lunto-en.svg
 Source6:        lunto-ru.svg
+Source7:        lunto-switcher.service
 
 BuildArch:      noarch
 Requires:       python3 >= 3.11
@@ -44,6 +45,7 @@ install -Dm644 %{SOURCE3} %{buildroot}%{_datadir}/doc/lunto-switcher/README.md
 install -Dm644 %{SOURCE4} %{buildroot}%{_datadir}/licenses/lunto-switcher/LICENSE
 install -Dm644 %{SOURCE5} %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/lunto-en.svg
 install -Dm644 %{SOURCE6} %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/lunto-ru.svg
+install -Dm644 %{SOURCE7} %{buildroot}%{_user_unit_dir}/lunto-switcher.service
 
 mkdir -p %{buildroot}%{_sysconfdir}/xdg/autostart
 cat > %{buildroot}%{_sysconfdir}/xdg/autostart/lunto-switcher.desktop <<'DESKTOP'
@@ -72,6 +74,7 @@ chmod 644 %{buildroot}%{_prefix}/lib/modules-load.d/lunto-switcher.conf
 %{_datadir}/doc/lunto-switcher/config.example.toml
 %{_datadir}/icons/hicolor/scalable/apps/lunto-en.svg
 %{_datadir}/icons/hicolor/scalable/apps/lunto-ru.svg
+%{_user_unit_dir}/lunto-switcher.service
 
 %post
 modprobe uinput 2>/dev/null || :
@@ -84,14 +87,14 @@ else
     echo "lunto-switcher: add your user to the 'input' group:  sudo usermod -aG input <user>  (then re-login)"
 fi
 # best effort: restart the daemon right away in the running user session
+# (systemd --user unit inherits the session environment: WAYLAND_DISPLAY, XDG_CURRENT_DESKTOP)
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != root ]; then
     uid=$(id -u "$SUDO_USER" 2>/dev/null || :)
     if [ -n "$uid" ] && [ -S "/run/user/$uid/bus" ]; then
-        pkill -f 'python3 /usr/bin/lunto-switcher' 2>/dev/null || :
         runuser -u "$SUDO_USER" -- env XDG_RUNTIME_DIR=/run/user/$uid \
             DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
-            DISPLAY=:0 sh -c 'nohup /usr/bin/lunto-switcher >/dev/null 2>&1 &' || :
-        echo "lunto-switcher: daemon restarted in the running session (tray icon may appear in a few seconds)"
+            sh -c 'pkill -f "python3 /usr/bin/lunto-switcher" 2>/dev/null; systemctl --user daemon-reload; systemctl --user enable --now lunto-switcher.service' || :
+        echo "lunto-switcher: daemon (re)started via systemd --user"
     else
         echo "lunto-switcher: will start automatically at the next login"
     fi
@@ -103,6 +106,9 @@ if [ "$1" = 0 ]; then
 fi
 
 %changelog
+* Sat Nov 14 2026 Lunto Switcher <noreply@localhost> - 0.2.1-1
+- Start daemon via systemd --user unit: proper session env (layout switching works)
+
 * Sat Nov 14 2026 Lunto Switcher <noreply@localhost> - 0.2.0-1
 - Tray icon (AppIndicator): layout flag, hotkey change, exit
 - Configurable hotkey with modifiers, saved to config.toml
