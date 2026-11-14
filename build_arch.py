@@ -3,7 +3,7 @@
 import tarfile
 from pathlib import Path
 
-VERSION = "0.1.2"
+VERSION = "0.2.0"
 HERE = Path(__file__).parent
 
 PKGBUILD = f"""# Maintainer: Lunto Switcher
@@ -13,11 +13,11 @@ pkgrel=1
 pkgdesc='Hotkey-only keyboard layout fixer (Punto Switcher style) for X11 and Wayland'
 arch=('any')
 license=('MIT')
-depends=('python' 'python-evdev' 'wl-clipboard' 'xclip' 'libx11' 'systemd')
+depends=('python' 'python-evdev' 'python-gobject' 'gtk3' 'libayatana-appindicator' 'wl-clipboard' 'xclip' 'libx11' 'systemd')
 install=lunto-switcher.install
 source=('lunto_switcher.py' '70-lunto-switcher.rules' 'lunto-switcher.desktop' 'lunto-switcher-modules.conf'
-        'LICENSE' 'README.md' 'config.example.toml')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+        'LICENSE' 'README.md' 'config.example.toml' 'lunto-en.svg' 'lunto-ru.svg')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {{
   install -Dm755 lunto_switcher.py "$pkgdir/usr/bin/lunto-switcher"
@@ -27,6 +27,8 @@ package() {{
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/lunto-switcher/LICENSE"
   install -Dm644 README.md "$pkgdir/usr/share/doc/lunto-switcher/README.md"
   install -Dm644 config.example.toml "$pkgdir/usr/share/doc/lunto-switcher/config.example.toml"
+  install -Dm644 lunto-en.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/lunto-en.svg"
+  install -Dm644 lunto-ru.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/lunto-ru.svg"
 }}
 """
 
@@ -73,7 +75,8 @@ def main():
         "lunto-switcher.desktop": DESKTOP,
         "lunto-switcher-modules.conf": "uinput\n",
     }
-    copies = ["lunto_switcher.py", "70-lunto-switcher.rules", "LICENSE", "README.md", "config.example.toml"]
+    copies = ["lunto_switcher.py", "70-lunto-switcher.rules", "LICENSE", "README.md", "config.example.toml",
+              "lunto-en.svg", "lunto-ru.svg"]
     import io
     with tarfile.open(out, "w:gz") as tar:
         def add(name, data):

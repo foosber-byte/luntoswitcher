@@ -7,7 +7,7 @@ import tarfile
 import time
 from pathlib import Path
 
-VERSION = "0.1.2"
+VERSION = "0.2.0"
 HERE = Path(__file__).parent
 NOW = int(time.time())
 
@@ -16,7 +16,7 @@ Version: {VERSION}
 Architecture: all
 Section: utils
 Priority: optional
-Depends: python3 (>= 3.8), python3-evdev, wl-clipboard, xclip, systemd | udev
+Depends: python3 (>= 3.11), python3-evdev, python3-gi, gir1.2-ayatanaappindicator3-0.1, gir1.2-gtk-3.0, wl-clipboard, xclip, systemd | udev
 Recommends: python3-tomli
 Maintainer: Lunto Switcher <noreply@localhost>
 Installed-Size: {{size}}
@@ -40,6 +40,18 @@ if [ "$1" = configure ]; then
         echo "lunto-switcher: user '$u' added to group 'input'. Log out and back in to activate."
     else
         echo "lunto-switcher: add your user to the 'input' group:  sudo usermod -aG input <user>  (then re-login)"
+    fi
+    if [ -n "$u" ] && [ "$u" != root ]; then
+        uid=$(id -u "$u" 2>/dev/null || :)
+        if [ -n "$uid" ] && [ -S "/run/user/$uid/bus" ]; then
+            pkill -f 'python3 /usr/bin/lunto-switcher' 2>/dev/null || true
+            runuser -u "$u" -- env XDG_RUNTIME_DIR=/run/user/$uid \
+                DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
+                DISPLAY=:0 sh -c 'nohup /usr/bin/lunto-switcher >/dev/null 2>&1 &' || true
+            echo "lunto-switcher: daemon restarted in the running session"
+        else
+            echo "lunto-switcher: will start automatically at the next login"
+        fi
     fi
 fi
 exit 0
@@ -89,6 +101,8 @@ def files():
         ("usr/share/doc/lunto-switcher/copyright", copyright_file(), 0o644),
         ("usr/share/doc/lunto-switcher/README.md", (HERE / "README.md").read_bytes(), 0o644),
         ("usr/share/doc/lunto-switcher/config.example.toml", (HERE / "config.example.toml").read_bytes(), 0o644),
+        ("usr/share/icons/hicolor/scalable/apps/lunto-en.svg", (HERE / "lunto-en.svg").read_bytes(), 0o644),
+        ("usr/share/icons/hicolor/scalable/apps/lunto-ru.svg", (HERE / "lunto-ru.svg").read_bytes(), 0o644),
     ]
 
 

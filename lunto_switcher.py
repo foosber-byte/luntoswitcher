@@ -9,6 +9,7 @@ Reads keys from /dev/input (evdev), types through a uinput virtual keyboard, so 
 works the same on X11 and Wayland. The clipboard is never touched: the selection is
 read from PRIMARY.
 """
+import fcntl
 import json
 import os
 import re
@@ -16,6 +17,7 @@ import select
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -82,6 +84,21 @@ MAX_BUF = 64     # a "word" never needs more; less data held is less to leak
 def log(*a):
     """Never pass typed or selected text here: the log file must stay free of user data."""
     print("lunto-switcher:", *a, file=sys.stderr, flush=True)
+
+
+def acquire_lock():
+    """Only one instance per user session: a second one exits immediately."""
+    d = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}" or "/tmp")
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        d = Path("/tmp")
+    f = open(d / "lunto-switcher.lock", "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit("lunto-switcher: already running")
+    return f
 
 
 def harden():
@@ -215,7 +232,13 @@ class Daemon:
     def __init__(self, cfg):
         g = cfg.get("general", {})
         sw = cfg.get("switch", {})
-        self.hotkey = getattr(e, cfg.get("hotkeys", {}).get("key", "KEY_PAUSE"))
+        hk = cfg.get("hotkeys", {})
+        self.hotkey = getattr(e, hk.get("key", "KEY_PAUSE"))
+        self.hotkey_mods = {getattr(e, m) for m in hk.get("mods", []) if hasattr(e, m)}
+        self.capture = False   # tray asks the daemon for the next pressed key
+        self.captured = None   # (frozenset(mods), keycode) once captured
+        self.on_layout = None  # tray callback: called with the layout name on change
+        self.tray_layout = None
         self.key_delay = g.get("key_delay", 0.004)
         self.switch_delay = sw.get("delay", 0.08)
         self.select_delay = g.get("select_delay", 0.08)
@@ -403,7 +426,10 @@ class Daemon:
             return
         if value == 1:
             self.down.add(code)
-        if code == self.hotkey:
+        if self.capture and value == 1 and code not in MODS:
+            self.captured = (frozenset(self.down & MODS), code)
+            return
+        if code == self.hotkey and self.hotkey_mods <= self.down:
             if value == 1:
                 self.on_hotkey()
             return
@@ -421,11 +447,12 @@ class Daemon:
             self.buf.clear()
 
     def on_hotkey(self):
-        if self.down & (CTRLS | METAS):
+        rest = self.down - self.hotkey_mods
+        if rest & (CTRLS | METAS):
             return
-        if self.down & ALTS:
+        if rest & ALTS:
             action = self.act_case
-        elif self.down & SHIFTS:
+        elif rest & SHIFTS:
             action = self.convert_selected
         else:
             action = self.act_convert_word
@@ -464,10 +491,21 @@ class Daemon:
 
     def loop(self):
         last_scan = 0
+        last_layout = 0.0
         while True:
             if time.time() - last_scan > 3:
                 self.scan()
                 last_scan = time.time()
+            if time.time() - last_layout > 1:
+                last_layout = time.time()
+                l = self.current_layout()
+                if l != self.tray_layout:
+                    self.tray_layout = l
+                    if self.on_layout:
+                        try:
+                            self.on_layout(l)
+                        except Exception as ex:
+                            log("layout callback failed:", repr(ex))
             if not self.devs:
                 time.sleep(1)
                 continue
@@ -486,8 +524,155 @@ class Daemon:
             self.run_pending()
 
 
+def config_path():
+    return Path(os.environ.get("LUNTO_SWITCHER_CONFIG") or Path.home() / ".config/lunto-switcher/config.toml")
+
+
+def save_config(data):
+    """Minimal TOML writer: sections of scalars / string lists only."""
+    p = config_path()
+    lines = []
+    for sect, vals in data.items():
+        if not isinstance(vals, dict):
+            continue
+        lines.append("[%s]" % sect)
+        for k, v in vals.items():
+            if isinstance(v, bool):
+                lines.append("%s = %s" % (k, "true" if v else "false"))
+            elif isinstance(v, (int, float)):
+                lines.append("%s = %s" % (k, v))
+            elif isinstance(v, list):
+                lines.append("%s = [%s]" % (k, ", ".join(json.dumps(str(x)) for x in v)))
+            else:
+                lines.append("%s = %s" % (k, json.dumps(str(v))))
+        lines.append("")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("\n".join(lines), encoding="utf-8")
+
+
+def hotkey_label(daemon):
+    try:
+        names = {c: n[4:] for c, n in evdev.ecodes.KEY.items() if isinstance(n, str) and n.startswith("KEY_")}
+        mods = "+".join(names[m] for m in sorted(daemon.hotkey_mods))
+        key = names.get(daemon.hotkey, "KEY_%d" % daemon.hotkey)
+        return (mods + "+" + key) if mods else key
+    except Exception:
+        return "Pause"
+
+
+class Tray:
+    """Tray icon (StatusNotifier via AppIndicator): layout flag, hotkey change, exit."""
+
+    def __init__(self, daemon):
+        import gi
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk, GLib
+        gi.require_version("AyatanaAppIndicator3", "0.1")
+        from gi.repository import AyatanaAppIndicator3
+        self.Gtk, self.GLib = Gtk, GLib
+        self.App = AyatanaAppIndicator3
+        self.daemon = daemon
+        self.ind = AyatanaAppIndicator3.Indicator.new_with_path(
+            "lunto-switcher", "lunto-en", AyatanaAppIndicator3.IndicatorCategory.APPLICATION_STATUS,
+            "/usr/share/icons")
+        self.ind.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
+
+        menu = Gtk.Menu()
+        self.layout_item = Gtk.MenuItem(label="Раскладка: EN")
+        self.layout_item.set_sensitive(False)
+        menu.append(self.layout_item)
+        hk = Gtk.MenuItem(label="Сменить хоткей…")
+        hk.connect("activate", self.ask_hotkey)
+        menu.append(hk)
+        quit_item = Gtk.MenuItem(label="Выход")
+        quit_item.connect("activate", self.quit)
+        menu.append(quit_item)
+        menu.show_all()
+        self.ind.set_menu(menu)
+
+        daemon.on_layout = lambda l: GLib.idle_add(self.update_layout, l)
+        self.update_layout(daemon.tray_layout or daemon.layout)
+        self.update_title()
+
+    def update_layout(self, layout):
+        if layout not in LAYOUTS:
+            return False
+        self.ind.set_icon_full("lunto-" + layout, layout)
+        self.layout_item.set_text("Раскладка: " + layout.upper())
+        return False
+
+    def update_title(self):
+        combo = hotkey_label(self.daemon)
+        self.ind.set_title("Lunto Switcher",
+                           "Слово: %s | Выделение: Shift+%s | Регистр: Alt+%s" % (combo, combo, combo))
+
+    def ask_hotkey(self, *_):
+        Gtk, GLib = self.Gtk, self.GLib
+        win = Gtk.Window(title="Lunto Switcher — новый хоткей")
+        win.set_default_size(420, 140)
+        win.set_keep_above(True)
+        lbl = Gtk.Label(label="Нажмите новую клавишу или комбинацию.\nEsc — отмена.")
+        lbl.set_margin_top(20)
+        lbl.set_margin_bottom(20)
+        win.add(lbl)
+        self.daemon.capture = True
+        self.daemon.captured = None
+        win.show_all()
+
+        def poll():
+            if self.daemon.captured is None and win.is_visible():
+                return True
+            self.daemon.capture = False
+            win.destroy()
+            cap = self.daemon.captured
+            if cap:
+                mods, code = cap
+                if code == e.KEY_ESCAPE and not mods:
+                    return False
+                try:
+                    key = evdev.ecodes.KEY[code]
+                    mods_names = sorted(evdev.ecodes.KEY[m] for m in mods)
+                except (KeyError, IndexError):
+                    return False
+                data = {}
+                if tomllib and config_path().exists():
+                    with open(config_path(), "rb") as f:
+                        data = tomllib.load(f)
+                hk = data.setdefault("hotkeys", {})
+                hk["key"] = key
+                hk["mods"] = mods_names
+                save_config(data)
+                self.daemon.hotkey = code
+                self.daemon.hotkey_mods = set(mods)
+                self.update_title()
+            return False
+
+        GLib.timeout_add(50, poll)
+
+    def quit(self, *_):
+        try:
+            self.ind.set_status(self.App.IndicatorStatus.PASSIVE)
+        except Exception:
+            pass
+        self.GLib.idle_add(self.Gtk.main_quit)
+
+
+def tray_available():
+    if "--no-tray" in sys.argv:
+        return False
+    if not (os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY")):
+        return False
+    try:
+        import gi
+        gi.require_version("Gtk", "3.0")
+        gi.require_version("AyatanaAppIndicator3", "0.1")
+        return True
+    except Exception:
+        return False
+
+
 def load_config():
-    path = Path(os.environ.get("LUNTO_SWITCHER_CONFIG", Path.home() / ".config/lunto-switcher/config.toml"))
+    path = config_path()
     if tomllib and path.exists():
         with open(path, "rb") as f:
             return tomllib.load(f)
@@ -496,9 +681,28 @@ def load_config():
 
 if __name__ == "__main__":
     harden()
+    _lock = acquire_lock()
     try:
-        Daemon(load_config()).loop()
+        daemon = Daemon(load_config())
     except PermissionError as ex:
         sys.exit("lunto-switcher: no access to /dev/input or /dev/uinput (%s). See README: 'input' group + udev rule." % ex)
-    except KeyboardInterrupt:
-        pass
+    if tray_available():
+        try:
+            Tray(daemon)
+            threading.Thread(target=daemon.loop, daemon=True).start()
+            from gi.repository import Gtk
+            Gtk.main()
+        except KeyboardInterrupt:
+            pass
+        except Exception as ex:
+            log("tray unavailable, running headless:", repr(ex))
+            try:
+                daemon.loop()
+            except KeyboardInterrupt:
+                pass
+    else:
+        log("tray unavailable, running headless")
+        try:
+            daemon.loop()
+        except KeyboardInterrupt:
+            pass
