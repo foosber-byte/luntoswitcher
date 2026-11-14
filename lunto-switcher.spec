@@ -1,6 +1,6 @@
 Name:           lunto-switcher
 %{!?_user_unit_dir:%global _user_unit_dir /usr/lib/systemd/user}
-Version:        0.2.1
+Version:        0.2.2
 Release:        1%{?dist}
 Summary:        Hotkey-only keyboard layout fixer (Punto Switcher style)
 
@@ -107,6 +107,9 @@ if [ "$1" = 0 ]; then
 fi
 
 %changelog
+* Sat Nov 14 2026 Lunto Switcher <noreply@localhost> - 0.2.2-1
+- Fix tray init: Gtk.MenuItem has set_label, not set_text
+
 * Sat Nov 14 2026 Lunto Switcher <noreply@localhost> - 0.2.1-1
 - Start daemon via systemd --user unit: proper session env (layout switching works)
 

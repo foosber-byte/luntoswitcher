@@ -598,7 +598,7 @@ class Tray:
         if layout not in LAYOUTS:
             return False
         self.ind.set_icon_full("lunto-" + layout, layout)
-        self.layout_item.set_text("Раскладка: " + layout.upper())
+        self.layout_item.set_label("Раскладка: " + layout.upper())
         return False
 
     def update_title(self):
