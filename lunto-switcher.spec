@@ -1,5 +1,5 @@
 Name:           lunto-switcher
-Version:        0.1.1
+Version:        0.1.2
 Release:        1%{?dist}
 Summary:        Hotkey-only keyboard layout fixer (Punto Switcher style)
 
@@ -81,6 +81,9 @@ if [ "$1" = 0 ]; then
 fi
 
 %changelog
+* Sat Nov 14 2026 Lunto Switcher <noreply@localhost> - 0.1.2-1
+- Fix CRLF line endings shipped in the script (shebang broke startup)
+
 * Sat Nov 14 2026 Lunto Switcher <noreply@localhost> - 0.1.1-1
 - Include LICENSE file in package %files
 
